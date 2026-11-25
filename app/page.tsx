@@ -64,9 +64,13 @@ export default function Home() {
     async function loadStorefront() {
       const supabase = createClient();
 
+      let loadingStage = 'categories';
+
       try {
         setLoadingProducts(true);
         setLoadError('');
+
+        loadingStage = 'categories';
 
         const { data: categoryData, error: categoryError } =
           await supabase
@@ -78,6 +82,8 @@ export default function Home() {
         if (categoryError) {
           throw categoryError;
         }
+
+        loadingStage = 'products';
 
         const { data: productData, error: productError } =
           await supabase
@@ -104,6 +110,8 @@ export default function Home() {
         }[] = [];
 
         if (productIds.length > 0) {
+          loadingStage = 'product_images';
+
           const { data, error: imageError } = await supabase
             .from('product_images')
             .select(
@@ -155,14 +163,38 @@ export default function Home() {
           setProducts(mappedProducts);
         }
       } catch (error) {
-        console.error('Storefront loading error:', error);
+        console.error('Storefront loading error:', {
+          stage: loadingStage,
+          error,
+        });
+
+        const errorDetails =
+          error && typeof error === 'object'
+            ? (error as {
+                message?: string;
+                code?: string;
+                details?: string;
+                hint?: string;
+              })
+            : null;
+
+        const errorMessage =
+          errorDetails?.message ||
+          (error instanceof Error
+            ? error.message
+            : String(error || 'Unknown error'));
+
+        const diagnosticMessage = [
+          errorMessage,
+          errorDetails?.code,
+          errorDetails?.details,
+          errorDetails?.hint,
+        ]
+          .filter(Boolean)
+          .join(' | ');
 
         if (isMounted) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load products. Please refresh the page.'
-          );
+          setLoadError(`${loadingStage}: ${diagnosticMessage}`);
         }
       } finally {
         if (isMounted) {
