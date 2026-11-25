@@ -58,7 +58,11 @@ export default function Home() {
 
   const [heroVideo, setHeroVideo] = useState('');
   const [heroVideoReady, setHeroVideoReady] = useState(false);
+
   const heroVideoRef = useRef<HTMLVideoElement>(null);
+  const heroPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Load products and categories from Supabase.
   useEffect(() => {
@@ -237,8 +241,13 @@ export default function Home() {
         | undefined;
 
       if (isMounted) {
-        setHeroVideo(content?.video_url || '');
+        if (heroPlayTimerRef.current) {
+          clearTimeout(heroPlayTimerRef.current);
+          heroPlayTimerRef.current = null;
+        }
+
         setHeroVideoReady(false);
+        setHeroVideo(content?.video_url || '');
       }
     }
 
@@ -246,8 +255,37 @@ export default function Home() {
 
     return () => {
       isMounted = false;
+
+      if (heroPlayTimerRef.current) {
+        clearTimeout(heroPlayTimerRef.current);
+      }
     };
   }, []);
+
+  // Show the video's first frame, then start playback after 500ms.
+  const handleHeroVideoLoaded = () => {
+    const video = heroVideoRef.current;
+
+    if (!video) return;
+
+    video.muted = true;
+
+    // Reveal the actual first frame before playback starts.
+    setHeroVideoReady(true);
+
+    if (heroPlayTimerRef.current) {
+      clearTimeout(heroPlayTimerRef.current);
+    }
+
+    heroPlayTimerRef.current = setTimeout(() => {
+      video.play().catch((error) => {
+        console.warn(
+          'Jiwrap hero autoplay was blocked by the browser:',
+          error
+        );
+      });
+    }, 500);
+  };
 
   const filteredProducts = useMemo(
     () =>
@@ -439,7 +477,7 @@ export default function Home() {
           className="hero-visual"
           style={{ position: 'relative' }}
         >
-          {/* Keep the original Jiwrap artwork visible while the video loads. */}
+          {/* Original Jiwrap artwork remains underneath as a fallback. */}
           <div className="hero-visual-glow" />
 
           <div className="hero-stamp">
@@ -478,14 +516,13 @@ export default function Home() {
             <span>J</span>
           </div>
 
-          {/* Video appears only after playback actually begins. */}
+          {/* Video first frame appears before playback begins. */}
           {heroVideo && (
             <video
               ref={heroVideoRef}
               key={heroVideo}
               className="hero-background-video"
               src={heroVideo}
-              autoPlay
               muted
               loop
               playsInline
@@ -493,23 +530,15 @@ export default function Home() {
               controls={false}
               disablePictureInPicture
               disableRemotePlayback
-              onCanPlay={() => {
-                const video = heroVideoRef.current;
-
-                if (!video) return;
-
-                video.muted = true;
-
-                video.play().catch((error) => {
-                  console.warn(
-                    'Jiwrap hero autoplay was blocked:',
-                    error
-                  );
-                });
-              }}
-              onPlaying={() => setHeroVideoReady(true)}
+              onLoadedData={handleHeroVideoLoaded}
               onError={() => {
                 setHeroVideoReady(false);
+
+                if (heroPlayTimerRef.current) {
+                  clearTimeout(heroPlayTimerRef.current);
+                  heroPlayTimerRef.current = null;
+                }
+
                 console.error('Jiwrap hero video failed to load.');
               }}
               style={{
@@ -522,7 +551,7 @@ export default function Home() {
                 objectFit: 'cover',
                 borderRadius: 'inherit',
                 opacity: heroVideoReady ? 1 : 0,
-                transition: 'opacity 500ms ease',
+                transition: 'opacity 300ms ease',
                 pointerEvents: 'none',
               }}
             />
