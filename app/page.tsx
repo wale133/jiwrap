@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -55,7 +55,10 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadError, setLoadError] = useState('');
+
   const [heroVideo, setHeroVideo] = useState('');
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   // Load products and categories from Supabase.
   useEffect(() => {
@@ -235,6 +238,7 @@ export default function Home() {
 
       if (isMounted) {
         setHeroVideo(content?.video_url || '');
+        setHeroVideoReady(false);
       }
     }
 
@@ -431,9 +435,53 @@ export default function Home() {
         </div>
 
         {/* HERO VIDEO: loaded from Admin > Website Management */}
-        <div className="hero-visual">
-          {heroVideo ? (
+        <div
+          className="hero-visual"
+          style={{ position: 'relative' }}
+        >
+          {/* Keep the original Jiwrap artwork visible while the video loads. */}
+          <div className="hero-visual-glow" />
+
+          <div className="hero-stamp">
+            MADE TO
+            <br />
+            MAKE AN
+            <br />
+            <strong>IMPRESSION.</strong>
+          </div>
+
+          <div className="hero-product hero-bag">
+            <div className="bag-handle" />
+            <span>jiwrap</span>
+          </div>
+
+          <div className="hero-product hero-box">
+            <span>jiwrap.</span>
+          </div>
+
+          <div className="hero-product hero-mailer">
+            <span>
+              YOUR BRAND
+              <br />
+              GOES HERE
+            </span>
+          </div>
+
+          <div className="hero-product hero-card">
+            <span>J</span>
+            <small>BRAND ESSENTIALS</small>
+          </div>
+
+          <div className="hero-roll">
+            <span>J</span>
+            <span>J</span>
+            <span>J</span>
+          </div>
+
+          {/* Video appears only after playback actually begins. */}
+          {heroVideo && (
             <video
+              ref={heroVideoRef}
               key={heroVideo}
               className="hero-background-video"
               src={heroVideo}
@@ -441,61 +489,43 @@ export default function Home() {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
               controls={false}
-              onError={() =>
-                console.error(
-                  'The configured Jiwrap hero video could not be played.'
-                )
-              }
+              disablePictureInPicture
+              disableRemotePlayback
+              onCanPlay={() => {
+                const video = heroVideoRef.current;
+
+                if (!video) return;
+
+                video.muted = true;
+
+                video.play().catch((error) => {
+                  console.warn(
+                    'Jiwrap hero autoplay was blocked:',
+                    error
+                  );
+                });
+              }}
+              onPlaying={() => setHeroVideoReady(true)}
+              onError={() => {
+                setHeroVideoReady(false);
+                console.error('Jiwrap hero video failed to load.');
+              }}
               style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 10,
                 display: 'block',
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
                 borderRadius: 'inherit',
+                opacity: heroVideoReady ? 1 : 0,
+                transition: 'opacity 500ms ease',
+                pointerEvents: 'none',
               }}
             />
-          ) : (
-            <>
-              <div className="hero-visual-glow" />
-
-              <div className="hero-stamp">
-                MADE TO
-                <br />
-                MAKE AN
-                <br />
-                <strong>IMPRESSION.</strong>
-              </div>
-
-              <div className="hero-product hero-bag">
-                <div className="bag-handle" />
-                <span>jiwrap</span>
-              </div>
-
-              <div className="hero-product hero-box">
-                <span>jiwrap.</span>
-              </div>
-
-              <div className="hero-product hero-mailer">
-                <span>
-                  YOUR BRAND
-                  <br />
-                  GOES HERE
-                </span>
-              </div>
-
-              <div className="hero-product hero-card">
-                <span>J</span>
-                <small>BRAND ESSENTIALS</small>
-              </div>
-
-              <div className="hero-roll">
-                <span>J</span>
-                <span>J</span>
-                <span>J</span>
-              </div>
-            </>
           )}
         </div>
       </section>
