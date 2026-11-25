@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -57,12 +57,6 @@ export default function Home() {
   const [loadError, setLoadError] = useState('');
 
   const [heroVideo, setHeroVideo] = useState('');
-  const [heroVideoReady, setHeroVideoReady] = useState(false);
-
-  const heroVideoRef = useRef<HTMLVideoElement>(null);
-  const heroPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
 
   // Load products and categories from Supabase.
   useEffect(() => {
@@ -241,12 +235,6 @@ export default function Home() {
         | undefined;
 
       if (isMounted) {
-        if (heroPlayTimerRef.current) {
-          clearTimeout(heroPlayTimerRef.current);
-          heroPlayTimerRef.current = null;
-        }
-
-        setHeroVideoReady(false);
         setHeroVideo(content?.video_url || '');
       }
     }
@@ -255,37 +243,8 @@ export default function Home() {
 
     return () => {
       isMounted = false;
-
-      if (heroPlayTimerRef.current) {
-        clearTimeout(heroPlayTimerRef.current);
-      }
     };
   }, []);
-
-  // Show the video's first frame, then start playback after 500ms.
-  const handleHeroVideoLoaded = () => {
-    const video = heroVideoRef.current;
-
-    if (!video) return;
-
-    video.muted = true;
-
-    // Reveal the actual first frame before playback starts.
-    setHeroVideoReady(true);
-
-    if (heroPlayTimerRef.current) {
-      clearTimeout(heroPlayTimerRef.current);
-    }
-
-    heroPlayTimerRef.current = setTimeout(() => {
-      video.play().catch((error) => {
-        console.warn(
-          'Jiwrap hero autoplay was blocked by the browser:',
-          error
-        );
-      });
-    }, 500);
-  };
 
   const filteredProducts = useMemo(
     () =>
@@ -316,7 +275,6 @@ export default function Home() {
 
       <header className="site-header">
         <div className="nav-inner">
-          {/* OFFICIAL JIWRAP HEADER LOGO */}
           <a
             className="wordmark"
             href="#home"
@@ -472,57 +430,21 @@ export default function Home() {
           </div>
         </div>
 
-        {/* HERO VIDEO: loaded from Admin > Website Management */}
+        {/* HERO VIDEO BILLBOARD — NO ILLUSTRATED PLACEHOLDER */}
         <div
           className="hero-visual"
-          style={{ position: 'relative' }}
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            backgroundColor: '#25252A',
+          }}
         >
-          {/* Original Jiwrap artwork remains underneath as a fallback. */}
-          <div className="hero-visual-glow" />
-
-          <div className="hero-stamp">
-            MADE TO
-            <br />
-            MAKE AN
-            <br />
-            <strong>IMPRESSION.</strong>
-          </div>
-
-          <div className="hero-product hero-bag">
-            <div className="bag-handle" />
-            <span>jiwrap</span>
-          </div>
-
-          <div className="hero-product hero-box">
-            <span>jiwrap.</span>
-          </div>
-
-          <div className="hero-product hero-mailer">
-            <span>
-              YOUR BRAND
-              <br />
-              GOES HERE
-            </span>
-          </div>
-
-          <div className="hero-product hero-card">
-            <span>J</span>
-            <small>BRAND ESSENTIALS</small>
-          </div>
-
-          <div className="hero-roll">
-            <span>J</span>
-            <span>J</span>
-            <span>J</span>
-          </div>
-
-          {/* Video first frame appears before playback begins. */}
           {heroVideo && (
             <video
-              ref={heroVideoRef}
               key={heroVideo}
               className="hero-background-video"
               src={heroVideo}
+              autoPlay
               muted
               loop
               playsInline
@@ -530,28 +452,31 @@ export default function Home() {
               controls={false}
               disablePictureInPicture
               disableRemotePlayback
-              onLoadedData={handleHeroVideoLoaded}
+              aria-label="Jiwrap brand showcase video"
+              onCanPlay={(event) => {
+                const video = event.currentTarget;
+                video.muted = true;
+
+                video.play().catch((error) => {
+                  console.warn(
+                    'Jiwrap hero autoplay was blocked by the browser:',
+                    error
+                  );
+                });
+              }}
               onError={() => {
-                setHeroVideoReady(false);
-
-                if (heroPlayTimerRef.current) {
-                  clearTimeout(heroPlayTimerRef.current);
-                  heroPlayTimerRef.current = null;
-                }
-
-                console.error('Jiwrap hero video failed to load.');
+                console.error(
+                  'The configured Jiwrap hero video could not be loaded or played.'
+                );
               }}
               style={{
                 position: 'absolute',
                 inset: 0,
-                zIndex: 10,
                 display: 'block',
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
                 borderRadius: 'inherit',
-                opacity: heroVideoReady ? 1 : 0,
-                transition: 'opacity 300ms ease',
                 pointerEvents: 'none',
               }}
             />
@@ -699,7 +624,6 @@ export default function Home() {
             Start a custom order <ArrowRight size={18} />
           </a>
 
-          {/* BENEFITS MOVED INTO CUSTOM ORDER SECTION */}
           <div className="custom-benefits">
             <div className="benefit">
               <span className="benefit-icon">
@@ -780,7 +704,6 @@ export default function Home() {
       <footer className="footer" id="help">
         <div className="footer-main wrap">
           <div className="footer-brand">
-            {/* OFFICIAL JIWRAP FOOTER LOGO */}
             <a
               className="wordmark footer-wordmark"
               href="#home"
